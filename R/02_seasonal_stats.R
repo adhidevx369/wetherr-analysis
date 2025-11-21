@@ -24,12 +24,12 @@ df <- readRDS(clean_data_file)
 df_seasonal <- df %>%
   mutate(
     Season = case_when(
-      Month %in% c(12, 1, 2) ~ "DJF",
-      Month %in% c(3, 4, 5) ~ "MAM",
-      Month %in% c(6, 7, 8) ~ "JJA",
-      Month %in% c(9, 10, 11) ~ "SON"
+      Month %in% c(12, 1) ~ "NEM",
+      Month %in% c(6, 7) ~ "SWM",
+      Month == 4 ~ "FIM",
+      Month == 10 ~ "SIM"
     ),
-    # Adjust Year for DJF: Dec 2020 belongs to DJF 2021
+    # Adjust Year for NEM: Dec 2020 belongs to NEM 2021
     Season_Year = ifelse(Month == 12, Year + 1, Year)
   ) %>%
   filter(!is.na(Season))
@@ -46,8 +46,14 @@ seasonal_stats <- df_seasonal %>%
     .groups = "drop"
   ) %>%
   # Filter out incomplete seasons (e.g., DJF needs 3 months)
-  filter(Count == 3) %>%
-  select(-Count) %>%
+  # Filter out incomplete seasons
+  # NEM: 2 months, SWM: 2 months, FIM: 1 month, SIM: 1 month
+  mutate(Expected_Count = case_when(
+    Season %in% c("NEM", "SWM") ~ 2,
+    Season %in% c("FIM", "SIM") ~ 1
+  )) %>%
+  filter(Count == Expected_Count) %>%
+  select(-Count, -Expected_Count) %>%
   rename(Year = Season_Year)
 
 # --- Save Results ---

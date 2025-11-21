@@ -12,37 +12,43 @@ clean_data_dir <- "data_clean"
 if (!dir.exists(clean_data_dir)) dir.create(clean_data_dir, recursive = TRUE)
 
 # --- Helper Function to Parse Filename ---
+# --- Helper Function to Parse Filename ---
 parse_filename <- function(filepath) {
   filename <- basename(filepath)
   name_no_ext <- tools::file_path_sans_ext(filename)
 
-  # Regex to split Location and Variable
-  # Assumes format like "Location_Variable" or "Location_Variable.."
-  parts <- str_split(name_no_ext, "_", simplify = TRUE)
+  # Convert to lower case for easier matching
+  name_lower <- str_to_lower(name_no_ext)
 
-  # Heuristic: First part is usually Location, rest is Variable
-  # Special handling for names with underscores like "Nuwara_Eliya"
+  # Extra safety: remove .xlsx or xlsx if it remains
+  name_lower <- str_remove_all(name_lower, "\\.xlsx|xlsx")
 
-  if (str_detect(name_no_ext, "Nuwara_Elliya|Nuwara_Eliya")) {
-    location <- "Nuwara Eliya"
-    variable_part <- str_remove(name_no_ext, "Nuwara_Elliya_|Nuwara_Eliya_")
+  # Identify Variable
+  if (str_detect(name_lower, "precip|rain")) {
+    variable <- "Precipitation"
+    # Remove variable part (match precip/rain followed by any letters)
+    loc_part <- str_remove_all(name_lower, "precip[a-z]*|rain[a-z]*")
+  } else if (str_detect(name_lower, "temp")) {
+    variable <- "Temperature"
+    loc_part <- str_remove_all(name_lower, "temp[a-z]*")
   } else {
-    location <- parts[1]
-    variable_part <- paste(parts[-1], collapse = "_")
+    variable <- "Unknown"
+    loc_part <- name_lower
   }
 
-  # Normalize Location Names
-  location <- case_when(
-    location == "Puththalama" ~ "Puttalam",
-    TRUE ~ location
-  )
+  # Clean up Location Name
+  # Remove punctuation, extra spaces, and "district" if present
+  location <- loc_part %>%
+    str_replace_all("[[:punct:]]", " ") %>%
+    str_trim() %>%
+    str_to_title()
 
-  # Normalize Variable Names
-  variable_lower <- str_to_lower(variable_part)
-  variable <- case_when(
-    str_detect(variable_lower, "precip|rain") ~ "Precipitation",
-    str_detect(variable_lower, "temp") ~ "Temperature",
-    TRUE ~ "Unknown"
+  # Normalize specific location names
+  location <- case_when(
+    str_detect(location, "Puththalama|Puttalam") ~ "Puttalam",
+    str_detect(location, "Nuwara") ~ "Nuwara Eliya",
+    str_detect(location, "Hambanthota") ~ "Hambantota", # Standard spelling
+    TRUE ~ location
   )
 
   return(list(location = location, variable = variable))

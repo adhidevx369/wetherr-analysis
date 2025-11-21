@@ -1,6 +1,6 @@
 # R/08_visualizations.R
 # Step 08: Climate Plots
-# Goal: Generate publication-grade plots for trends, anomalies, variability, and correlations.
+# Goal: Generate plots for each Time Period and Season with specific titles.
 
 library(tidyverse)
 library(ggplot2)
@@ -8,7 +8,6 @@ library(ggplot2)
 # --- Configuration ---
 seasonal_file <- "outputs/seasonal_stats/all_seasonal_stats.RDS"
 annual_file <- "outputs/annual_stats/all_annual_stats.RDS"
-anomalies_dir <- "outputs/anomalies" # Reading CSVs as RDS not saved for anomalies
 output_dir <- "outputs/plots"
 if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 
@@ -19,79 +18,94 @@ if (!file.exists(seasonal_file) || !file.exists(annual_file)) {
 seasonal_df <- readRDS(seasonal_file)
 annual_df <- readRDS(annual_file)
 
-# Load Anomalies (Combine all CSVs)
-anomaly_files <- list.files(anomalies_dir, pattern = "_seasonal_anomalies.csv", full.names = TRUE)
-anomalies_df <- map_dfr(anomaly_files, read_csv, show_col_types = FALSE)
+# --- Define Time Periods ---
+periods <- list(
+    "1870-2025" = c(1870, 2025),
+    "1870-1900" = c(1870, 1900),
+    "1901-1930" = c(1901, 1930),
+    "1931-1960" = c(1931, 1960),
+    "1961-1990" = c(1961, 1990),
+    "1991-2025" = c(1991, 2025)
+)
 
-# --- Plotting Functions ---
+# --- Plotting Function ---
+generate_plots <- function(df, location, variable, season, period_name, start_year, end_year, is_annual = FALSE) {
+    # Filter Data
+    plot_data <- df %>%
+        filter(Location == location, Variable == variable) %>%
+        filter(Year >= start_year, Year <= end_year)
 
-# 1. Annual Time Series with Trend Line
-plot_annual_ts <- function(df, location) {
-    p <- df %>%
-        filter(Location == location) %>%
-        mutate(Value = ifelse(Variable == "Precipitation", Total, Mean)) %>%
-        ggplot(aes(x = Year, y = Value, color = Variable)) +
-        geom_line() +
-        geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
-        facet_wrap(~Variable, scales = "free_y", ncol = 1) +
+    if (!is_annual) {
+        plot_data <- plot_data %>% filter(Season == season)
+    }
+
+    # Skip if not enough data
+    if (nrow(plot_data) < 5) {
+        return()
+    }
+
+    # Define Value Column (Total for Precip, Mean for Temp)
+    if (variable == "Precipitation") {
+        plot_data <- plot_data %>% mutate(Plot_Value = Total)
+        y_label <- "Total Precipitation (mm)"
+    } else {
+        plot_data <- plot_data %>% mutate(Plot_Value = Mean)
+        y_label <- "Mean Temperature (°C)"
+    }
+
+    # Create Title
+    if (is_annual) {
+        plot_title <- paste0(location, " - ", variable, "\nTime Period: ", period_name, " - Season: Annual")
+        file_suffix <- "Annual"
+    } else {
+        plot_title <- paste0(location, " - ", variable, "\nTime Period: ", period_name, " - Season: ", season)
+        file_suffix <- season
+    }
+
+    # Plot
+    p <- ggplot(plot_data, aes(x = Year, y = Plot_Value)) +
+        geom_line(color = ifelse(variable == "Precipitation", "blue", "red")) +
+        geom_point(size = 1, alpha = 0.5) +
+        geom_smooth(method = "lm", se = FALSE, color = "black", linetype = "dashed") +
         labs(
-            title = paste("Annual Climate Trends -", location),
-            y = "Value (mm or °C)", x = "Year"
+            title = plot_title,
+            y = y_label,
+            x = "Year"
         ) +
-        theme_minimal()
+        theme_minimal() +
+        theme(plot.title = element_text(hjust = 0.5, size = 12))
 
-    ggsave(file.path(output_dir, paste0(location, "_annual_ts.png")), p, width = 8, height = 6)
+    # Save
+    # Create sub-directory for organization
+    save_dir <- file.path(output_dir, period_name, location)
+    if (!dir.exists(save_dir)) dir.create(save_dir, recursive = TRUE)
+
+    file_name <- paste0(location, "_", variable, "_", file_suffix, ".png")
+    ggsave(file.path(save_dir, file_name), p, width = 8, height = 6)
 }
 
-# 2. Seasonal Anomalies
-plot_anomalies <- function(df, location) {
-    p <- df %>%
-        filter(Location == location) %>%
-        ggplot(aes(x = Year, y = Anomaly, fill = Anomaly > 0)) +
-        geom_bar(stat = "identity", position = "identity") +
-        facet_grid(Variable ~ Season, scales = "free_y") +
-        scale_fill_manual(values = c("TRUE" = "red", "FALSE" = "blue"), guide = "none") +
-        labs(
-            title = paste("Seasonal Anomalies -", location),
-            y = "Anomaly", x = "Year"
-        ) +
-        theme_minimal()
+# --- Main Loop ---
+locations <- unique(seasonal_df$Location)
+variables <- unique(seasonal_df$Variable)
+seasons <- unique(seasonal_df$Season)
 
-    ggsave(file.path(output_dir, paste0(location, "_seasonal_anomalies.png")), p, width = 10, height = 8)
-}
+for (p_name in names(periods)) {
+    start_year <- periods[[p_name]][1]
+    end_year <- periods[[p_name]][2]
 
-# 3. Variability Boxplots
-plot_variability <- function(df, location) {
-    p <- df %>%
-        filter(Location == location) %>%
-        mutate(Value = ifelse(Variable == "Precipitation", Total, Mean)) %>%
-        ggplot(aes(x = Season, y = Value, fill = Season)) +
-        geom_boxplot() +
-        facet_wrap(~Variable, scales = "free_y", ncol = 1) +
-        labs(
-            title = paste("Seasonal Variability -", location),
-            y = "Value", x = "Season"
-        ) +
-        theme_minimal()
+    message("Generating plots for Period: ", p_name)
 
-    ggsave(file.path(output_dir, paste0(location, "_variability_boxplot.png")), p, width = 8, height = 6)
-}
+    for (loc in locations) {
+        for (var in variables) {
+            # 1. Seasonal Plots
+            for (sea in seasons) {
+                generate_plots(seasonal_df, loc, var, sea, p_name, start_year, end_year, is_annual = FALSE)
+            }
 
-# --- Generate Plots ---
-locations <- unique(annual_df$Location)
-
-for (loc in locations) {
-    message("Generating plots for ", loc)
-    tryCatch(
-        {
-            plot_annual_ts(annual_df, loc)
-            plot_anomalies(anomalies_df, loc)
-            plot_variability(seasonal_df, loc)
-        },
-        error = function(e) {
-            message("Error plotting for ", loc, ": ", e$message)
+            # 2. Annual Plots
+            generate_plots(annual_df, loc, var, "Annual", p_name, start_year, end_year, is_annual = TRUE)
         }
-    )
+    }
 }
 
 message("Visualizations complete. Saved to ", output_dir)

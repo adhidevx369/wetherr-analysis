@@ -1,47 +1,40 @@
 # R/09_master_run_all.R
-# Step 09: Master Pipeline Runner
-# Goal: Execute all R scripts in correct order to reproduce entire workflow.
+# Master Script to Run Full Analysis Pipeline
 
-scripts <- c(
-    "R/01_clean_data.R",
-    "R/02_seasonal_stats.R",
-    "R/03_annual_stats.R",
-    "R/04_trend_analysis.R",
-    "R/05_variability.R",
-    "R/06_anomalies.R",
-    "R/07_correlation.R",
-    "R/08_visualizations.R"
-)
+# 1. Clean Data
+message("\n--- Step 01: Cleaning Data ---")
+source("R/01_clean_data.R")
 
-log_file <- "pipeline.log"
-sink(log_file, split = TRUE)
+# 2. Seasonal Stats
+message("\n--- Step 02: Seasonal Statistics ---")
+source("R/02_seasonal_stats.R")
 
-cat("======================================================\n")
-cat("Starting Sri Lanka Monthly Climate Analysis Pipeline\n")
-cat("Timestamp:", as.character(Sys.time()), "\n")
-cat("======================================================\n\n")
+# 3. Annual Stats
+message("\n--- Step 03: Annual Statistics ---")
+source("R/03_annual_stats.R")
 
-for (script in scripts) {
-    cat("------------------------------------------------------\n")
-    cat("Running:", script, "...\n")
-    cat("------------------------------------------------------\n")
+# 4. Trend Analysis (Time Periods)
+message("\n--- Step 04: Trend Analysis ---")
+source("R/04_trend_analysis.R")
 
-    tryCatch(
-        {
-            source(script)
-            cat("\n[SUCCESS] Completed:", script, "\n\n")
-        },
-        error = function(e) {
-            cat("\n[ERROR] Failed in:", script, "\n")
-            cat("Message:", e$message, "\n")
-            stop("Pipeline stopped due to error.")
-        }
-    )
-}
+# 4b. Anomaly Calculation (New)
+message("\n--- Step 04b: Anomaly Calculation ---")
+source("R/04b_anomalies.R")
 
-cat("======================================================\n")
-cat("Pipeline Completed Successfully!\n")
-cat("Timestamp:", as.character(Sys.time()), "\n")
-cat("======================================================\n")
+# 5. Advanced Analysis (Wavelet, Fourier, Change-point)
+message("\n--- Step 05: Advanced Analysis ---")
+source("R/05_advanced_analysis.R")
 
-sink()
+# 6. Correlation Analysis
+message("\n--- Step 06: Correlation Analysis ---")
+source("R/06_correlation_analysis.R")
+
+# 7. Period-wise Statistics (New)
+message("\n--- Step 07: Period-wise Statistics ---")
+source("R/07_period_stats.R")
+
+# 8. Visualizations (New)
+message("\n--- Step 08: Visualizations ---")
+source("R/08_visualizations.R")
+
+message("\n--- Full Pipeline Complete! ---")

@@ -23,56 +23,87 @@ seasonal_df <- readRDS(seasonal_file)
 annual_df <- readRDS(annual_file)
 
 # --- Helper Function for Trend Analysis ---
+# --- Define Time Periods ---
+periods <- list(
+    "1870-2025" = c(1870, 2025),
+    "1870-1900" = c(1870, 1900),
+    "1901-1930" = c(1901, 1930),
+    "1931-1960" = c(1931, 1960),
+    "1961-1990" = c(1961, 1990),
+    "1991-2025" = c(1991, 2025)
+)
+
+# --- Helper Function for Trend Analysis ---
 compute_trend <- function(df, time_col, value_col, group_cols) {
-    df %>%
-        group_by(across(all_of(group_cols))) %>%
-        summarise(
-            MK_tau = mk.test(!!sym(value_col))$estimates[["tau"]],
-            MK_p_value = mk.test(!!sym(value_col))$p.value,
-            Sens_Slope = sens.slope(!!sym(value_col))$estimates[["Sen's slope"]],
-            .groups = "drop"
-        ) %>%
-        mutate(
-            Significance = case_when(
-                MK_p_value < 0.01 ~ "***",
-                MK_p_value < 0.05 ~ "**",
-                MK_p_value < 0.1 ~ "*",
-                TRUE ~ "ns"
-            )
-        )
+    # Check if enough data points exist (e.g., at least 10)
+    if (nrow(df) < 10) {
+        return(NULL)
+    }
+
+    tryCatch(
+        {
+            mk <- mk.test(df[[value_col]])
+            sens <- sens.slope(df[[value_col]])
+
+            tibble(
+                MK_tau = mk$estimates[["tau"]],
+                MK_p_value = mk$p.value,
+                Sens_Slope = sens$estimates[["Sen's slope"]]
+            ) %>%
+                mutate(
+                    Significance = case_when(
+                        MK_p_value < 0.01 ~ "***",
+                        MK_p_value < 0.05 ~ "**",
+                        MK_p_value < 0.1 ~ "*",
+                        TRUE ~ "ns"
+                    )
+                )
+        },
+        error = function(e) {
+            return(NULL)
+        }
+    )
 }
 
-# --- Analyze Seasonal Trends ---
-# For Precipitation, we usually look at Total. For Temperature, Mean.
-# But let's do both or pick based on variable?
-# The prompt says "valid metrics: seasonal mean, total...".
-# Let's compute trends for the primary metric: Total for Precip, Mean for Temp.
+# --- Run Analysis Loop ---
+all_trends_list <- list()
 
-seasonal_prep <- seasonal_df %>%
-    mutate(Metric_Value = ifelse(Variable == "Precipitation", Total, Mean))
+for (p_name in names(periods)) {
+    start_year <- periods[[p_name]][1]
+    end_year <- periods[[p_name]][2]
 
-seasonal_trends <- compute_trend(
-    seasonal_prep,
-    time_col = "Year",
-    value_col = "Metric_Value",
-    group_cols = c("Location", "Variable", "Season")
-) %>%
-    mutate(Period = "Seasonal")
+    message("Analyzing Period: ", p_name)
 
-# --- Analyze Annual Trends ---
-annual_prep <- annual_df %>%
-    mutate(Metric_Value = ifelse(Variable == "Precipitation", Total, Mean))
+    # Filter Data
+    seasonal_sub <- seasonal_df %>% filter(Year >= start_year, Year <= end_year)
+    annual_sub <- annual_df %>% filter(Year >= start_year, Year <= end_year)
 
-annual_trends <- compute_trend(
-    annual_prep,
-    time_col = "Year",
-    value_col = "Metric_Value",
-    group_cols = c("Location", "Variable")
-) %>%
-    mutate(Period = "Annual", Season = "Annual")
+    # 1. Seasonal Trends
+    seasonal_prep <- seasonal_sub %>%
+        mutate(Metric_Value = ifelse(Variable == "Precipitation", Total, Mean))
 
-# --- Combine and Save ---
-all_trends <- bind_rows(seasonal_trends, annual_trends)
+    s_trends <- seasonal_prep %>%
+        group_by(Location, Variable, Season) %>%
+        group_modify(~ compute_trend(.x, "Year", "Metric_Value", NULL)) %>%
+        ungroup() %>%
+        mutate(Period = p_name, Type = "Seasonal")
+
+    all_trends_list[[paste0(p_name, "_seasonal")]] <- s_trends
+
+    # 2. Annual Trends
+    annual_prep <- annual_sub %>%
+        mutate(Metric_Value = ifelse(Variable == "Precipitation", Total, Mean))
+
+    a_trends <- annual_prep %>%
+        group_by(Location, Variable) %>%
+        group_modify(~ compute_trend(.x, "Year", "Metric_Value", NULL)) %>%
+        ungroup() %>%
+        mutate(Period = p_name, Type = "Annual", Season = "Annual")
+
+    all_trends_list[[paste0(p_name, "_annual")]] <- a_trends
+}
+
+all_trends <- bind_rows(all_trends_list)
 
 saveRDS(all_trends, file.path(output_dir, "all_trends.RDS"))
 
