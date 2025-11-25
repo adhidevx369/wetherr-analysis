@@ -55,13 +55,14 @@ Contains results of the Mann-Kendall Trend Test and Sen's Slope Estimator.
 
 ## 6. `correlation/`
 
-Contains analysis of the relationship between Rainfall and Temperature.
+Contains spatial correlation analysis (Location vs. Location) for both Rainfall and Temperature, analyzed over specific time periods.
 
-- **`all_seasonal_correlations.csv`**: Pearson correlation coefficients for each Location and Season.
-- **`correlation_heatmap.png`**: (Legacy) Heatmap for the full dataset.
-- **`[Period]/` Subfolders**:
-  - **`correlation_heatmap.png`**: Heatmap specific to that time period.
-  - **`seasonal_correlations.csv`**: Correlation data for that time period.
+- **`[Period]/` Subfolders** (e.g., `1870-2025/`, `1870-1900/`):
+  - **`correlation_precipitation.csv`**: Correlation matrix for Precipitation.
+  - **`correlation_temperature.csv`**: Correlation matrix for Temperature.
+  - **`heatmap_precipitation.png`**: Enhanced heatmap visualization for Precipitation correlation.
+  - **`heatmap_temperature.png`**: Enhanced heatmap visualization for Temperature correlation.
+  - **`correlation_summary.csv`**: Summary of the most correlated district for each location.
 
 ## 7. `plots/`
 
@@ -71,7 +72,11 @@ Contains time-series visualizations.
 - **Content**: Plots of Annual and Seasonal data for Precipitation and Temperature.
 - **Features**:
   - **Trend Line**: Dashed black line showing the linear trend.
-  - **Annotations**: Text box showing the Mann-Kendall Z-value (`MK Z`) and Sen's Slope.
+  - **Annotations**: Text box showing:
+    - `MK Z`: Mann-Kendall Z-value.
+    - `MK Tau`: Mann-Kendall Tau statistic.
+    - `MK p-value`: Significance p-value.
+    - `Sen's Slope`: Magnitude of the trend.
   - **X-Axis**:
     - For `1870-2025`: 5-year intervals.
     - For other periods: 2-year intervals.

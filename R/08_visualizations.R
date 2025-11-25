@@ -78,10 +78,12 @@ generate_plots <- function(df, location, variable, season, period_name, start_ye
 
         if (nrow(trend_info) > 0) {
             mk_z <- round(trend_info$MK_Z, 2)
+            mk_tau <- round(trend_info$MK_tau, 2)
+            mk_p <- sprintf("%.4f", trend_info$MK_p_value)
             sen_slope <- round(trend_info$Sens_Slope, 4)
             sig <- trend_info$Significance
 
-            annotation_text <- paste0("MK Z: ", mk_z, " (", sig, ")\nSen's Slope: ", sen_slope)
+            annotation_text <- paste0("MK Z: ", mk_z, " (", sig, ")\nMK Tau: ", mk_tau, "\nMK p-value: ", mk_p, "\nSen's Slope: ", sen_slope)
         } else {
             annotation_text <- ""
         }
