@@ -21,13 +21,21 @@ source("R/04_trend_analysis.R")
 message("\n--- Step 04b: Anomaly Calculation ---")
 source("R/04b_anomalies.R")
 
+# 4c. Period Anomalies (New)
+message("\n--- Step 04c: Period Anomalies ---")
+source("R/07b_period_anomalies.R")
+
 # 5. Advanced Analysis (Wavelet, Fourier, Change-point)
 message("\n--- Step 05: Advanced Analysis ---")
 source("R/05_advanced_analysis.R")
 
-# 6. Correlation Analysis
-message("\n--- Step 06: Correlation Analysis ---")
+# 6. Correlation Analysis (Spatial)
+message("\n--- Step 06: Correlation Analysis (Spatial) ---")
 source("R/06_correlation_analysis.R")
+
+# 6b. Correlation Analysis (Rainfall-Temp)
+message("\n--- Step 06b: Correlation Analysis (Rainfall-Temp) ---")
+source("R/07_correlation.R")
 
 # 7. Period-wise Statistics (New)
 message("\n--- Step 07: Period-wise Statistics ---")

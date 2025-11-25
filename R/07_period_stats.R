@@ -38,6 +38,7 @@ calculate_stats <- function(df, period_name, start_year, end_year) {
             SD = sd(Value, na.rm = TRUE),
             Min = min(Value, na.rm = TRUE),
             Max = max(Value, na.rm = TRUE),
+            CV = (sd(Value, na.rm = TRUE) / mean(Value, na.rm = TRUE)) * 100,
             Count = n(),
             .groups = "drop"
         )

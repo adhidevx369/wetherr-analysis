@@ -62,18 +62,58 @@ generate_plots <- function(df, location, variable, season, period_name, start_ye
         file_suffix <- season
     }
 
+    # Load Trends Data
+    trends_file <- "outputs/trends/all_trends.RDS"
+    if (file.exists(trends_file)) {
+        all_trends <- readRDS(trends_file)
+
+        # Filter for current plot context
+        trend_info <- all_trends %>%
+            filter(
+                Location == location,
+                Variable == variable,
+                Period == period_name,
+                Season == ifelse(is_annual, "Annual", season)
+            )
+
+        if (nrow(trend_info) > 0) {
+            mk_z <- round(trend_info$MK_Z, 2)
+            sen_slope <- round(trend_info$Sens_Slope, 4)
+            sig <- trend_info$Significance
+
+            annotation_text <- paste0("MK Z: ", mk_z, " (", sig, ")\nSen's Slope: ", sen_slope)
+        } else {
+            annotation_text <- ""
+        }
+    } else {
+        annotation_text <- ""
+    }
+
     # Plot
     p <- ggplot(plot_data, aes(x = Year, y = Plot_Value)) +
         geom_line(color = ifelse(variable == "Precipitation", "blue", "red")) +
         geom_point(size = 1, alpha = 0.5) +
         geom_smooth(method = "lm", se = FALSE, color = "black", linetype = "dashed") +
+        annotate("text",
+            x = min(plot_data$Year), y = max(plot_data$Plot_Value),
+            label = annotation_text, hjust = 0, vjust = 1, size = 3.5, fontface = "italic"
+        ) +
         labs(
             title = plot_title,
             y = y_label,
             x = "Year"
         ) +
+        labs(
+            title = plot_title,
+            y = y_label,
+            x = "Year"
+        ) +
+        scale_x_continuous(breaks = seq(min(plot_data$Year), max(plot_data$Year), by = ifelse(period_name == "1870-2025", 5, 2))) +
         theme_minimal() +
-        theme(plot.title = element_text(hjust = 0.5, size = 12))
+        theme(
+            plot.title = element_text(hjust = 0.5, size = 12),
+            axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)
+        )
 
     # Save
     # Create sub-directory for organization

@@ -23,11 +23,13 @@ annual_stats <- df %>%
         Total = sum(Value, na.rm = TRUE),
         Max = max(Value, na.rm = TRUE),
         Min = min(Value, na.rm = TRUE),
+        SD = sd(Value, na.rm = TRUE),
         Count = n(),
         .groups = "drop"
     ) %>%
     # Filter for complete years (12 months)
     filter(Count == 12) %>%
+    mutate(CV = (SD / Mean) * 100) %>%
     select(-Count)
 
 # --- Save Results ---

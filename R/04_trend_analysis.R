@@ -47,6 +47,7 @@ compute_trend <- function(df, time_col, value_col, group_cols) {
 
             tibble(
                 MK_tau = mk$estimates[["tau"]],
+                MK_Z = mk$statistic,
                 MK_p_value = mk$p.value,
                 Sens_Slope = sens$estimates[["Sen's slope"]]
             ) %>%
